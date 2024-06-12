@@ -17,7 +17,13 @@ import nltk
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 from sklearn.model_selection import GridSearchCV
+from sklearn.multioutput import MultiOutputClassifier
 import pickle
+from scipy.stats import gmean
+from sklearn.metrics import fbeta_score, make_scorer
+from sklearn.pipeline import Pipeline, FeatureUnion
+from sklearn.base import BaseEstimator,TransformerMixin
+from sklearn.ensemble import GradientBoostingClassifier, RandomForestClassifier, AdaBoostClassifier
 import argparse
 
 
@@ -26,7 +32,7 @@ DATABASE_FILENAME = '../db.sqlite3'
 TABLE_NAME = 'disaster_message'
 
 
-def get_df_from_database(database_filename):
+def get_df_from_database(database_filepath):
     '''
     Return dataframe from the database
 
@@ -34,30 +40,10 @@ def get_df_from_database(database_filename):
         database_filename (str): database filename. Default value DATABASE_FILENAME
 
     Returns:
-        df (pandas.DataFrame): dataframe containing the data 
+        df : dataframe containing the data 
     '''
-    engine = create_engine('sqlite:///' + database_filename)
-    return pd.read_sql_table(TABLE_NAME, engine)
-
-
-def load_data(database_filename):
-    '''
-    Load the data from the database
-
-    Args:
-        database_filename (str): database filename. Default value DATABASE_FILENAME
-
-    Returns:
-        X (pandas.Series): dataset
-        Y (pandas.DataFrame): dataframe containing the categories
-        category_names (list): list containing the categories name
-    '''
-    df = get_df_from_database(database_filename) 
-    X = df['message']
-    Y = df.iloc[:, 4:]
-    category_names = list(df.columns[4:])
-    return X, Y, category_names
-
+    engine = create_engine('sqlite:///' + database_filepath)
+    return pd.read_sql_table('disaster_message', engine)
 
 def tokenize(text):
     '''
@@ -72,7 +58,7 @@ def tokenize(text):
     url_regex = 'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
     detected_urls = re.findall(url_regex, text)
     for url in detected_urls:
-        text = text.replace(url, 'urlplaceholder')
+       text = text.replace(url, "urlplaceholder")
 
     tokens = word_tokenize(text)
     lemmatizer = WordNetLemmatizer()
@@ -84,135 +70,124 @@ def tokenize(text):
 
     return clean_tokens
 
+# Build a custom transformer which will extract the starting verb of a sentence
+class StartingVerbExtractor(BaseEstimator, TransformerMixin):
+    """
+    Starting Verb Extractor class
+    
+    This class extract the starting verb of a sentence,
+    creating a new feature for the ML classifier
+    """
 
-def build_model(grid_search_cv = False):
+    def starting_verb(self, text):
+        sentence_list = nltk.sent_tokenize(text)
+        for sentence in sentence_list:
+            pos_tags = nltk.pos_tag(tokenize(sentence))
+            first_word, first_tag = pos_tags[0]
+            if first_tag in ['VB', 'VBP'] or first_word == 'RT':
+                return True
+        return False
+
+    # Given it is a tranformer we can return the self 
+    def fit(self, X, y=None):
+        return self
+
+    def transform(self, X):
+        X_tagged = pd.Series(X).apply(self.starting_verb)
+        return pd.DataFrame(X_tagged)
+
+def build_pepeline():
     '''
-    Build the model
+    Build pipeline
 
-    Args:
-        grid_search_cv (bool): if True after building the pipeline it will be performed an exhaustive search over specified parameter values ti find the best ones
-
-    Returns:
-        pipeline (pipeline.Pipeline): model
+    Output: 
+        pipeline : pipeline
     '''
-    pipeline = Pipeline([('vect', CountVectorizer(tokenizer = tokenize)), 
-                     ('tfidf', TfidfTransformer()), 
-                     ('clf', MultiOutputClassifier(RandomForestClassifier()))
-                    ])
+    new_pipeline = pipeline = Pipeline([
+        ('features', FeatureUnion([
 
-    #pipeline.get_params()
+            ('text_pipeline', Pipeline([
+                ('count_vectorizer', CountVectorizer(tokenizer=tokenize, token_pattern=None)),
+                ('tfidf_transformer', TfidfTransformer())
+            ])),
 
-    if grid_search_cv == True:
-        print('Searching for best parameters...')
-        parameters = {'vect__ngram_range': ((1, 1), (1, 2))
-            , 'vect__max_df': (0.5, 0.75, 1.0)
-            , 'tfidf__use_idf': (True, False)
-            , 'clf__estimator__n_estimators': [50, 100, 200]
-            , 'clf__estimator__min_samples_split': [2, 3, 4]
-        }
+            ('starting_verb_transformer', StartingVerbExtractor())
+        ])),
 
-        pipeline = GridSearchCV(pipeline, param_grid = parameters)
+        ('classifier', MultiOutputClassifier(AdaBoostClassifier()))
+    ])
+    return new_pipeline
 
-    return pipeline
+def multioutput_fscore(y_true,y_pred,beta=1):
+    """
+    MultiOutput Fscore
+    
+    This is a performance metric of my own creation.
+    It is a sort of geometric mean of the fbeta_score, computed on each label.
+    
+    It is compatible with multi-label and multi-class problems.
+    It features some peculiarities (geometric mean, 100% removal...) to exclude
+    trivial solutions and deliberatly under-estimate a stangd fbeta_score average.
+    The aim is avoiding issues when dealing with multi-class/multi-label imbalanced cases.
+    
+    It can be used as scorer for GridSearchCV:
+        scorer = make_scorer(multioutput_fscore,beta=1)
+        
+    Arguments:
+        y_true -> List of labels
+        y_prod -> List of predictions
+        beta -> Beta value to be used to calculate fscore metric
+    
+    Output:
+        f1score -> Calculation geometric mean of fscore
+    """
+    
+    # If provided y predictions is a dataframe then extract the values from that
+    if isinstance(y_pred, pd.DataFrame) == True:
+        y_pred = y_pred.values
+    
+    # If provided y actuals is a dataframe then extract the values from that
+    if isinstance(y_true, pd.DataFrame) == True:
+        y_true = y_true.values
+    
+    f1score_list = []
+    for column in range(0,y_true.shape[1]):
+        score = fbeta_score(y_true,y_pred,beta,average='weighted')
+        f1score_list.append(score)
+        
+    f1score = np.asarray(f1score_list)
+    f1score = f1score[f1score<1]
+    
+    # Get the geometric mean of f1score
+    f1score = gmean(f1score)
+    return f1score
 
-
-def evaluate_model(model, X_test, Y_test, category_names):
-    '''
-    Evaluate the model performances and print the results
-
-    Args:
-        model (pipeline.Pipeline): model to evaluate
-        X_test (pandas.Series): dataset
-        Y_test (pandas.DataFrame): dataframe containing the categories
-        category_names (str): categories name
-    '''
-    Y_pred = model.predict(X_test)
-    # Calculate the accuracy for each of them.
-    for i in range(len(category_names)):
-       print('Category: {} '.format(category_names[i]))
-       print(classification_report(Y_test.iloc[:, i].values, Y_pred[:, i]))
-       print('Accuracy {}\n\n'.format(accuracy_score(Y_test.iloc[:, i].values, Y_pred[:, i])))
-
-
-def save_model(model, model_filename):
-    '''
-    Save in a pickle file the model
-
-    Args:
-        model (pipeline.Pipeline): model to be saved
-        model_pickle_filename (str): destination pickle filename
-    '''
-    pickle.dump(model, open(model_filename, 'wb'))
-
-
-def load_model(model_pickle_filename):
-    '''
-    Return model from pickle file
-
-    Args:
-        model_pickle_filename (str): source pickle filename
-
-    Returns:
-        model (pipeline.Pipeline): model readed from pickle file 
-    '''
-    return pickle.load(open(model_pickle_filename, 'rb'))
-
-
-def parse_input_arguments():
-    '''
-    Parse the command line arguments
-
-    Returns:
-        database_filename (str): database filename. Default value DATABASE_FILENAME
-        model_pickle_filename (str): pickle filename. Default value MODEL_PICKLE_FILENAME
-        grid_search_cv (bool): If True perform grid search of the parameters
-    '''
-    parser = argparse.ArgumentParser(description = "Disaster Response Pipeline Train Classifier")
-    parser.add_argument('--database_filename', type = str, default = DATABASE_FILENAME, help = 'Database filename of the cleaned data')
-    parser.add_argument('--model_pickle_filename', type = str, default = MODEL_PICKLE_FILENAME, help = 'Pickle filename to save the model')
-    parser.add_argument('--grid_search_cv', action = "store_true", default = False, help = 'Perform grid search of the parameters')
-    args = parser.parse_args()
-    #print(args)
-    return args.database_filename, args.model_pickle_filename, args.grid_search_cv
-
-
-def train(database_filename, model_pickle_filename, grid_search_cv = False):
-    '''
-    Train the model and save it in a pickle file
-
-    Args:
-        database_filename (str): database filename
-        model_pickle_filename (str): pickle filename
-        grid_search_cv (bool): if True after building the pipeline it will be performed an exhaustive search over specified parameter values ti find the best ones
-
-    '''
-    # print(database_filename)
-    # print(model_pickle_filename)
-    # print(grid_search_cv)
-    # print(os.getcwd())
-
-    print('Download nltk componets if needed...')
-    nltk.download(['punkt', 'wordnet'])
-
-    print('Loading data...\n    Database: {}'.format(database_filename))
-    X, Y, category_names = load_data(database_filename)
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size = 0.2)
-
-    print('Building model...')
-    model = build_model(grid_search_cv)
-
-    print('Training model...')
-    model.fit(X_train, Y_train)
-
-    print('Evaluating model...')
-    evaluate_model(model, X_test, Y_test, category_names)
-
-    print('Saving model...\n    Model: {}'.format(model_pickle_filename))
-    save_model(model, model_pickle_filename)
-
-    print('Trained model saved!')
+def save_model(pipeline, pickle_filepath):
+    """
+    This function saves Pipeline
+    
+    Arguments:
+        pipeline -> GridSearchCV or Scikit Pipelin object
+        pickle_filepath -> destination path to save .pkl file
+    """
+    pickle.dump(pipeline, open(pickle_filepath, 'wb'))
 
 
 if __name__ == '__main__':
-    database_filename, model_pickle_filename, grid_search_cv = parse_input_arguments()
-    train(database_filename, model_pickle_filename, grid_search_cv)
+    # load data from database
+    print('Loading data from database')
+    df = get_df_from_database('../data/InsertDatabaseName.db')
+    X = df['message']
+    Y = df.iloc[:,4:]
+    category_names = list(df.columns[4:])
+
+    #Build a machine learning pipeline
+    print('Building the pipeline')
+    pipeline = build_pepeline()
+    
+    #Train pipeline
+    print('Training the pipeline ')
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y)
+    pipeline.fit(X_train, Y_train)
+
+    save_model(pipeline,'classifier.pkl')

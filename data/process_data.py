@@ -5,12 +5,6 @@ import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine
 
-CATEGORIES_FILENAME = 'disaster_categories.csv'
-MESSAGES_FILENAME = 'disaster_messages.csv'
-DATABASE_FILENAME = './InsertDatabaseName.db'
-TABLE_NAME = 'disaster_message'
-
-
 def load_message_categories(disaster_messages_file, disaster_categories_file):
     '''
     Load the messages and categories from csv files and merge it to the dataframe
@@ -24,7 +18,7 @@ def load_message_categories(disaster_messages_file, disaster_categories_file):
     '''
     messages = pd.read_csv(disaster_messages_file)
     categories = pd.read_csv(disaster_categories_file)
-    df = pd.merge(messages, categories, on = 'id')
+    df = pd.merge(messages,categories, on='id')
     return df
 
 
@@ -50,13 +44,13 @@ def clean_data(df):
     categories.columns = category_colnames
     # set each value to be the last character of the string
     for column in categories:
-        categories[column] = categories[column].apply(lambda x:int(x.split('-')[1]))
-    # convert column from string to numeric
-    categories[column] = categories[column].apply(pd.to_numeric)
+        categories[column] = categories[column].astype(str).str[-1:]
+        # convert column from string to numeric
+        categories[column] = categories[column].astype(int)
     # drop the original categories column from `df`
     df.drop('categories',axis='columns', inplace=True)
     # concatenate the original dataframe with the new `categories` dataframe
-    df = pd.concat([df.reset_index(drop=True), categories.reset_index(drop=True)], axis=1)
+    df = pd.concat([df, categories],join='inner', axis=1)
     # check number of duplicates
     num_duplicates = df.duplicated().sum()
     print('Number of duplicated is {}'.format(num_duplicates))
@@ -76,52 +70,7 @@ def save_data_to_database(df):
         df : dataframe
     '''
     engine = create_engine('sqlite:///InsertDatabaseName.db')
-    df.to_sql('disaster_message', engine, index = False)  
-
-
-def parse_input_arguments():
-    '''
-    Parse the command line arguments
-
-    Returns:
-        categories_filename (str): categories filename. Default value CATEGORIES_FILENAME
-        messages_filename (str): messages filename. Default value MESSAGES_FILENAME
-        database_filename (str): database filename. Default value DATABASE_FILENAME
-    '''
-    parser = argparse.ArgumentParser(description = "Disaster Response Pipeline Process Data")
-    parser.add_argument('--messages_filename', type = str, default = MESSAGES_FILENAME, help = 'Messages dataset filename')
-    parser.add_argument('--categories_filename', type = str, default = CATEGORIES_FILENAME, help = 'Categories dataset filename')
-    parser.add_argument('--database_filename', type = str, default = DATABASE_FILENAME, help = 'Database filename to save cleaned data')
-    args = parser.parse_args()
-    #print(args)
-    return args.messages_filename, args.categories_filename, args.database_filename
-
-
-def process(messages_filename, categories_filename, database_filename):
-    '''
-    Process the data and save it in a database
-
-    Args:
-        categories_filename (str): categories filename
-        messages_filename (str): messages filename
-        database_filename (str): database filename
-    '''
-    # print(messages_filename)
-    # print(categories_filename)
-    # print(database_filename)
-    # print(os.getcwd())
-
-    print('Loading data...\n    Messages: {}\n    Categories: {}'.format(messages_filename, categories_filename))
-    df = load_data(messages_filename, categories_filename)
-
-    print('Cleaning data...')
-    df = clean_data(df)
-
-    print('Saving data...\n    Database: {}'.format(database_filename))
-    save_data(df, database_filename)
-
-    print('Cleaned data saved to database!')
-
+    df.to_sql('disaster_message', engine, index=False, if_exists='replace')
 
 if __name__ == '__main__':
 
