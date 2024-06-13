@@ -22,18 +22,19 @@ def load_message_categories(disaster_messages_file, disaster_categories_file):
     return df
 
 
-def clean_data(df):
+def clean_data(df, categorie_file_path):
     '''
     This function cleans data from dataframe
 
     Args:
         df : dataframe with the not clean data
+        categorie_file_path : categorie file path
 
     Returns:
         clean dataframe : (dataframe)
     '''
     #load categories data
-    categories = pd.read_csv('./disaster_categories.csv')
+    categories = pd.read_csv(categorie_file_path)
     # create a dataframe of the 36 individual category columns
     categories = pd.Series(categories['categories']).str.split(pat=';', n=-1, expand=True)
     # select the first row of the categories dataframe
@@ -80,7 +81,7 @@ if __name__ == '__main__':
         df = load_message_categories(message_file_path, categories_file_path)
         #clean data
         print('#Cleaning data')
-        df = clean_data(df)
+        df = clean_data(df,categories_file_path)
         # Save the clean dataset into an sqlite database.
         print('#Saving clean dataset into an sqlite database')
         save_data_to_database(df)
