@@ -2,29 +2,22 @@ import pandas as pd
 import plotly
 import json
 import joblib
-import pickle
 
 from flask import Flask;
-from flask import render_template, request, jsonify
+from flask import render_template, request
 from sqlalchemy import create_engine
 from nltk.stem import WordNetLemmatizer
 from plotly.graph_objs import Bar
-from nltk.tokenize import word_tokenize, sent_tokenize
-from nltk import pos_tag, word_tokenize
+from nltk.tokenize import word_tokenize
+from nltk import word_tokenize
 from sklearn.base import BaseEstimator, TransformerMixin
 import nltk
 
 app = Flask(__name__)
 
 # load data
-engine = create_engine('sqlite:///../data/InsertDatabaseName.db')
+engine = create_engine('sqlite:///../data/DisasterMessages.db')
 df = pd.read_sql_table('disaster_message', engine)
-
-# load model
-# with open('../models/classifier.pkl','rb') as file:
-#     unpickler = pickle.Unpickler(file)
-#     model = unpickler.load()
-
 
 class StartingVerbExtractor(BaseEstimator, TransformerMixin):
 
@@ -63,7 +56,7 @@ def index():
     category_boolean = (df.iloc[:,4:] != 0).sum().values
 
     graphs = [
-            # GRAPH 1 - genre graph
+        # FIRST GRAPH
         {
             'data': [
                 Bar(
@@ -82,7 +75,7 @@ def index():
                 }
             }
         },
-            # GRAPH 2 - category graph    
+            # SECON GRAPH 
         {
             'data': [
                 Bar(
@@ -111,7 +104,7 @@ def index():
 
 @app.route('/go')
 def go():
-     # save user input in query
+    # Get request query arguments
     query = request.args.get('query', '') 
     # use model to predict classification for query
     classification_labels = model.predict([query])[0]
@@ -119,6 +112,7 @@ def go():
     return render_template('go.html', query=query,classification_result=classification_results)
 
 if __name__ == '__main__':
+   # Load model
    model = joblib.load("../models/classifier.pkl")
 app.run(host='0.0.0.0',port=3001,debug=True)
 

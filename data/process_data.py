@@ -1,7 +1,6 @@
 # Process the data and save it in a database
 # python process_data.py --messages_filename disaster_messages.csv --categories_filename disaster_categories.csv --database_filename ../../db.sqlite3
 
-import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine
 
@@ -64,20 +63,20 @@ def clean_data(df):
 
 def save_data_to_database(df):
     '''
-    Save the data into the database.
-
+    This function Saves clean data into the database.
     Args:
         df : dataframe
     '''
-    engine = create_engine('sqlite:///InsertDatabaseName.db')
+    engine = create_engine('sqlite:///DisasterMessages.db')
     df.to_sql('disaster_message', engine, index=False, if_exists='replace')
 
 if __name__ == '__main__':
-
     #Loading merged dataframe 
+    print('#Loading merged dataframe')
     df = load_message_categories('./disaster_messages.csv', './disaster_categories.csv');
     #clean data
+    print('#Cleaning data')
     df = clean_data(df)
-
     # Save the clean dataset into an sqlite database.
+    print('#Saving clean dataset into an sqlite database')
     save_data_to_database(df)
