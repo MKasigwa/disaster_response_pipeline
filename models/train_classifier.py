@@ -1,6 +1,6 @@
 # Train the model and save it in a pickle file
 # python train_classifier.py --database_filename ../../db.sqlite3 --model_pickle_filename trained_classifier.pkl --grid_search_cv
-
+import sys
 import pandas as pd
 from sqlalchemy import create_engine
 from sklearn.model_selection import train_test_split
@@ -115,21 +115,25 @@ def save_model(pipeline, pickle_filepath):
 
 
 if __name__ == '__main__':
+    if len(sys.argv) >= 2:
     # load data from database
-    print('Loading data from database')
-    df = get_df_from_database('../data/DisasterMessages.db')
-    X = df['message']
-    Y = df.iloc[:,4:]
-    category_names = list(df.columns[4:])
+        print('Loading data from database')
+        database_file_path =sys.argv[1] #'../data/DisasterMessages.db'
+        df = get_df_from_database(database_file_path)
+        X = df['message']
+        Y = df.iloc[:,4:]
+        category_names = list(df.columns[4:])
 
-    #Build a machine learning pipeline
-    print('Building the pipeline')
-    pipeline = build_pepeline()
-    
-    #Train pipeline
-    print('Training the pipeline ')
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y)
-    pipeline.fit(X_train, Y_train)
+        #Build a machine learning pipeline
+        print('Building the pipeline')
+        pipeline = build_pepeline()
+        
+        #Train pipeline
+        print('Training the pipeline ')
+        X_train, X_test, Y_train, Y_test = train_test_split(X, Y)
+        pipeline.fit(X_train, Y_train)
 
-    #Saved model
-    save_model(pipeline,'classifier.pkl')
+        #Saved model
+        save_model(pipeline,'classifier.pkl')
+    else:
+        print('Please provide database filepath')
