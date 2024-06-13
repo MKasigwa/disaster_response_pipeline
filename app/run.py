@@ -1,3 +1,4 @@
+import sys
 import pandas as pd
 import plotly
 import json
@@ -14,10 +15,6 @@ from sklearn.base import BaseEstimator, TransformerMixin
 import nltk
 
 app = Flask(__name__)
-
-# load data
-engine = create_engine('sqlite:///../data/DisasterMessages.db')
-df = pd.read_sql_table('disaster_message', engine)
 
 class StartingVerbExtractor(BaseEstimator, TransformerMixin):
 
@@ -111,8 +108,15 @@ def go():
     classification_results = dict(zip(df.columns[4:], classification_labels))
     return render_template('go.html', query=query,classification_result=classification_results)
 
-if __name__ == '__main__':
-   # Load model
-   model = joblib.load("../models/classifier.pkl")
-app.run(host='0.0.0.0',port=3001,debug=True)
+if len(sys.argv) >= 3:
+    # load data
+    database_file_path = sys.argv[1] #../data/DisasterMessages.db
+    engine = create_engine('sqlite:///' + database_file_path)
+    df = pd.read_sql_table('disaster_message', engine)
+    # Load model
+    model_file_path = sys.argv[2] #../models/classifier.pkl
+    model = joblib.load(model_file_path)
+    app.run(host='0.0.0.0',port=3001,debug=True)
+else:
+    print('Please provide database and model (classifier) filepaths')
 
