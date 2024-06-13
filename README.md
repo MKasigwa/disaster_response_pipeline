@@ -119,3 +119,12 @@ Here's the file structure of the project
 
 <a name="screenshots"></a>
 ## Screenshots
+
+1. Main page 
+<img width="1791" alt="Screenshot 2024-06-13 at 11 50 19" src="https://github.com/MKasigwa/disaster_response_pipeline/assets/38250874/3cfe426e-fa5c-4074-962c-92a33bd81008">
+
+2. Graphics of modal training
+<img width="1792" alt="Screenshot 2024-06-13 at 11 50 29" src="https://github.com/MKasigwa/disaster_response_pipeline/assets/38250874/9a8d764b-46c5-4b3d-9410-352baa4bf281">
+
+3. After clicking **Classify Message**
+<img width="1792" alt="Screenshot 2024-06-13 at 11 50 06" src="https://github.com/MKasigwa/disaster_response_pipeline/assets/38250874/994aa21d-5dc4-4186-ac74-8e4dcb595d96">
