@@ -1,9 +1,22 @@
 # Disaster Response Pipeline
 
+## Table of Contents
+1. [Context](#context)
+2. [Objectives](#objectives)
+3. [Structure](#structure)
+4. [Installation](#installation)
+5. [Dependencies](#dependencies)
+6. [Authors](#authors)
+7. [License](#license)
+8. [Acknowledgements](#acknowledgement)
+9. [Screenshots](#screenshots)
+
+<a name="context"></a>
 ## Context
 
 This project analyzes disaster data to build a model for an API that classifies disaster messages. The project contains real messages that were sent during disaster events. The purpose of this program is to categorize these events using machine learning pipeline to send the messages to an appropriate disaster relief agency.
 
+<a name="objectives"></a>
 ## Objectives
 
 This project have three important processes :
@@ -26,10 +39,12 @@ This project have three important processes :
 
 3. Flask Web App : The data visualizations frontEnd.
 
+<a name="structure"></a>
 ## Structure
 
 Here's the file structure of the project
 
+```
 - app
   | - templates
   | | - base.html # the base html template of the web app
@@ -48,17 +63,45 @@ Here's the file structure of the project
   | - classifier.pkl # saved model
 
 - README.md
+```
 
+<a name="installation"></a>
 ## Installation
 
-- Clone the project https://github.com/MKasigwa/disaster_response_pipeline.git
+- Clone the project
+  ```
+  https://github.com/MKasigwa/disaster_response_pipeline.git
+  ```
 - Change to the new disaster_response_pipeline directory : cd disaster_response_pipeline
-- Change to the app directory : cd app
-- Start the app : python run.py
-  - Running on http://127.0.0.1:3001
+- To run ETL pipeline and clean data :
+  * Change to data directory  :
+    ```
+    cd data
+    python ./process_data.py
+    ```
+- To run ML pipeline that loads data and classifier
+    ```
+    cd models
+    python ./train_classifier.py
+    ```
+-  Start the app
+  * Change to the app directory : 
+    ```
+    cd app
+    python run.py
+    ```
+- Go to http://127.0.0.1:3001
+
+<a name="dependencies"></a>
+## Dependencies
+- Python 3.5+
+- Machine Learning Libraries: NumPy, SciPy, Pandas, Sciki-Learn
+- Natural Language Process Libraries: NLTK
+- SQLlite Database Libraqries: SQLalchemy
+- Model Loading and Saving Library: Pickle
+- Web App and Data Visualization: Flask, Plotly
 
 <a name="authors"></a>
-
 ## Authors
 
 - [Miracle Kasigwa](https://github.com/MKasigwa)
@@ -68,3 +111,11 @@ Here's the file structure of the project
 ## License
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+<a name="acknowledgement"></a>
+## Acknowledgements
+
+[Udacity](https://www.udacity.com/) Data Science Nanodegree Program
+
+<a name="screenshots"></a>
+## Screenshots
