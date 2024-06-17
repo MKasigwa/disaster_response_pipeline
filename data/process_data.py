@@ -47,7 +47,7 @@ def clean_data(df, categorie_file_path):
     for column in categories:
         categories[column] = categories[column].astype(str).str[-1:]
         # convert column from string to numeric
-        categories[column] = categories[column].astype(int)
+        categories[column] = categories[column].apply(pd.to_numeric)
     # drop the original categories column from `df`
     df.drop('categories',axis='columns', inplace=True)
     # concatenate the original dataframe with the new `categories` dataframe
@@ -63,27 +63,28 @@ def clean_data(df, categorie_file_path):
     return df
     
 
-def save_data_to_database(df):
+def save_data_to_database(df, db_path):
     '''
     This function Saves clean data into the database.
     Args:
         df : dataframe
     '''
-    engine = create_engine('sqlite:///DisasterMessages.db')
+    engine = create_engine('sqlite:///' + db_path)
     df.to_sql('disaster_message', engine, index=False, if_exists='replace')
 
 if __name__ == '__main__':
-    if len(sys.argv) >= 3:
+    if len(sys.argv) >= 4:
         #Loading merged dataframe 
         print('#Loading merged dataframe')
-        message_file_path=sys.argv[1] #'./disaster_messages.csv'
-        categories_file_path = sys.argv[2] #'./disaster_categories.csv'
+        message_file_path, categories_file_path , database_file_path =sys.argv[1:] #'./disaster_messages.csv'
+        #categories_file_path = sys.argv[2] #'./disaster_categories.csv'
+        #database_file_path = sys.argv[3] #DisasterMessages.db
         df = load_message_categories(message_file_path, categories_file_path)
         #clean data
         print('#Cleaning data')
         df = clean_data(df,categories_file_path)
         # Save the clean dataset into an sqlite database.
         print('#Saving clean dataset into an sqlite database')
-        save_data_to_database(df)
+        save_data_to_database(df,database_file_path)
     else:
-        print('Please provide message and categories file paths')
+        print('Please provide message, categories and database file paths')

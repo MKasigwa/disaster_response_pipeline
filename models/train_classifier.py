@@ -1,6 +1,7 @@
 # Train the model and save it in a pickle file
 # python train_classifier.py --database_filename ../../db.sqlite3 --model_pickle_filename trained_classifier.pkl --grid_search_cv
 import sys
+import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine
 from sklearn.model_selection import train_test_split
@@ -16,6 +17,9 @@ import pickle
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.base import BaseEstimator,TransformerMixin
 from sklearn.ensemble import AdaBoostClassifier
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, accuracy_score
 
 
 def get_df_from_database(database_file_path):
@@ -88,7 +92,7 @@ def build_pepeline():
     Output: 
         pipeline : pipeline
     '''
-    new_pipeline = pipeline = Pipeline([
+    new_pipeline = Pipeline([
         ('features', FeatureUnion([
 
             ('text_pipeline', Pipeline([
@@ -115,10 +119,11 @@ def save_model(pipeline, pickle_filepath):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) >= 2:
+    if len(sys.argv) >= 3:
     # load data from database
         print('Loading data from database')
-        database_file_path =sys.argv[1] #'../data/DisasterMessages.db'
+        database_file_path, model_file_path =sys.argv[1:] #'../data/DisasterMessages.db'
+        #model_file_path =sys.argv[2] #'classifier.pkl'
         df = get_df_from_database(database_file_path)
         X = df['message']
         Y = df.iloc[:,4:]
@@ -131,9 +136,41 @@ if __name__ == '__main__':
         #Train pipeline
         print('Training the pipeline ')
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y)
-        pipeline.fit(X_train, Y_train)
+        pipeline = pipeline.fit(X_train, Y_train)
 
+        print('Classifing the pipeline ')
+        y_pred = pipeline.predict(X_test)
+
+        # Print the classification report
+        print("Print the classification report")    
+        for i in range(len(category_names)):
+            print('Category {}: {} '.format(i, category_names[i]))
+            print(classification_report(Y_test.iloc[:, i].values, y_pred[:, i]))
+            print('Accuracy {}\n\n'.format(accuracy_score(Y_test.iloc[:, i].values, y_pred[:, i])))
+
+        #Instantiate GridSearchCV
+        print('Instantiating GridSearchCV')
+        parameters = {
+            'features__text_pipeline__count_vectorizer__ngram_range': ((1, 1), (1, 2)),  # Example of tuning ngram_range
+            'classifier__estimator__n_estimators': [50, 100, 200],  # Example of tuning AdaBoostClassifier's n_estimators
+            'classifier__estimator__learning_rate': [0.1, 0.5, 1.0]  # Example of tuning AdaBoostClassifier's learning_rate
+        }
+        cv = GridSearchCV(pipeline, param_grid=parameters)
+
+        #Train pipeline
+        print('Training the GridSearchCv ')
+        cv.fit(X_train, Y_train)
+
+         # Calculate classification report
+        print('Calculate classification report for GridSearchCv')
+        y_pred = cv.predict(X_test)
+
+        # Print classification report on test data
+        print("Printing the classification report")   
+        print(classification_report(Y_test, y_pred))
+        
         #Saved model
-        save_model(pipeline,'classifier.pkl')
+        print("Saving the model")   
+        save_model(pipeline,model_file_path)
     else:
-        print('Please provide database filepath')
+        print('Please provide database and model file paths')

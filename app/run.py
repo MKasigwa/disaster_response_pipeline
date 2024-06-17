@@ -117,6 +117,7 @@ if len(sys.argv) >= 3:
     model_file_path = sys.argv[2] #../models/classifier.pkl
     model = joblib.load(model_file_path)
     app.run(host='0.0.0.0',port=3001,debug=True)
+
 else:
     print('Please provide database and model (classifier) filepaths')
 

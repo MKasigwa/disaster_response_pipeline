@@ -82,12 +82,12 @@ Here's the file structure of the project
   - Change to data directory :
     ```
     cd data
-    python process_data.py ./disaster_messages.csv ./disaster_categories.csv
+    python process_data.py ./disaster_messages.csv ./disaster_categories.csv DisasterMessages.db
     ```
 - To run ML pipeline that loads data and classifier
   ```
   cd models
-  python train_classifier.py ../data/DisasterMessages.db
+  python train_classifier.py ../data/DisasterMessages.db classifier.pkl
   ```
 - Start the app
 
