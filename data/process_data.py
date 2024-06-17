@@ -47,7 +47,11 @@ def clean_data(df, categorie_file_path):
     for column in categories:
         categories[column] = categories[column].astype(str).str[-1:]
         # convert column from string to numeric
-        categories[column] = categories[column].apply(pd.to_numeric)
+        categories[column] = categories[column].apply(pd.to_numeric)    
+    # Identify rows where at least one column has a value other than 0 or 1
+    invalid_rows = ((categories != 0) & (categories != 1)).any(axis=1)
+    # Filter the DataFrame to exclude those rows
+    categories = categories[~invalid_rows]
     # drop the original categories column from `df`
     df.drop('categories',axis='columns', inplace=True)
     # concatenate the original dataframe with the new `categories` dataframe
